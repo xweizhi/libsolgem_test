@@ -1,0 +1,13 @@
+950101
+gemc.gem1.type = 1
+gemc.gem1.x0 = -0.5
+gemc.gem1.x1 = 0.5
+gemc.gem1.y0 = -0.5
+gemc.gem1.y1 = 0.5
+gemc.gem1.z0 = 1.0
+gemc.gem1.depth = 0.01
+gemc.gem1.gem1x.stripangle = 0.0
+gemc.gem1.gem1x.pitch = 0.0004
+gemc.gem1.gem1y.stripangle = 90.0
+gemc.gem1.gem1y.pitch = 0.0004
+
