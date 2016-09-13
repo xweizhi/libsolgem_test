@@ -245,6 +245,9 @@ TSolSimGEMDigitization::ReadDatabase (const TDatime& date)
       { "elesamplingpoints",         &fEleSamplingPoints,         kInt    },
       { "elesamplingperiod",         &fEleSamplingPeriod,         kDouble },
       { "pulsenoisesigma",           &fPulseNoiseSigma,           kDouble },
+      { "pulsenoiseperiod",          &fPulseNoisePeriod,          kDouble },
+      { "pulsenoiseampconst",        &fPulseNoiseAmpConst,        kDouble },
+      { "pulsenoiseampsigma",        &fPulseNoiseAmpSigma,        kDouble },
       { "adcoffset",                 &fADCoffset,                 kDouble },
       { "adcgain",                   &fADCgain,                   kDouble },
       { "adcbits",                   &fADCbits,                   kInt    },
@@ -766,6 +769,11 @@ TSolSimGEMDigitization::AvaModel(const Int_t ic,
 	{
 	  Int_t posflag = 0;
 	  Double_t us = IntegralY( &fSumA[0], j, nx, ny ) * area;
+          
+          //generate the random pedestal phase and amplitude
+          Double_t phase = fTrnd.Uniform(0., fPulseNoisePeriod);
+          Double_t amp = fPulseNoiseAmpConst + fTrnd.Gaus(0., fPulseNoiseAmpSigma);
+
 	  for (Int_t b = 0; b < fEleSamplingPoints; b++)
 	    { // sampling
 	      Double_t pulse =
@@ -783,7 +791,7 @@ TSolSimGEMDigitization::AvaModel(const Int_t ic,
  
               //add noise only to those strips that are hit,
               if( fPulseNoiseSigma > 0. && pulse > 0. )
-             pulse += fTrnd.Gaus(0., fPulseNoiseSigma);
+             pulse += GetPedNoise(phase, amp, b);
 
 	      Short_t dadc = TSolSimAux::ADCConvert( pulse,
 						     fADCoffset,
@@ -807,7 +815,14 @@ TSolSimGEMDigitization::AvaModel(const Int_t ic,
 
   return virs;
 }
-
+//_________________________________________________________________________
+inline Double_t TSolSimGEMDigitization::GetPedNoise(Double_t &phase, Double_t& amp, Int_t& isample)
+{
+  Double_t thisPhase = phase + isample*fEleSamplingPeriod;
+  return fTrnd.Gaus(0., fPulseNoiseSigma) 
+         + amp*sin(2.*TMath::Pi()/fPulseNoisePeriod*thisPhase); 
+}
+//_________________________________________________________________________
 void
 TSolSimGEMDigitization::Print() const
 {
@@ -826,11 +841,16 @@ TSolSimGEMDigitization::Print() const
   cout << "    Trigger jitter: " << fTriggerJitter << endl;
   cout << "    Sampling Period: " << fEleSamplingPeriod << endl;
   cout << "    Sampling Points: " << fEleSamplingPoints   << endl;
-  cout << "    Pulse Noise width: " << fPulseNoiseSigma << endl;
   cout << "    ADC offset: " << fADCoffset << endl;
   cout << "    ADC gain: " << fADCgain << endl;
   cout << "    ADC bits: " << fADCbits << endl;
   cout << "    Gate width: " << fGateWidth << endl;
+
+  cout << "  GEM pedestal noise parameters: "<<endl;
+  cout << "    Pulse Noise period: " << fPulseNoisePeriod << endl;
+  cout << "    Pulse Noise amplitude sigma: " << fPulseNoiseAmpSigma << endl;
+  cout << "    Pulse Noise amplitude constant: " << fPulseNoiseAmpConst << endl;
+  cout << "    Additional Pulse Noise width: " << fPulseNoiseSigma << endl;
 
   cout << "  Pulse shaping parameters:" << endl;
   cout << "    Pulse shape tau0: " << fPulseShapeTau0 << endl;

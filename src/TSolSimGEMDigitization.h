@@ -155,6 +155,8 @@ class TSolSimGEMDigitization: public THaAnalysisObject
 			     const TVector3& xo,
 			     const Double_t time_off);
 
+  Double_t GetPedNoise(Double_t& phase, Double_t& amp, Int_t& isample);
+
   // Gas parameters
   Double_t fGasWion;               // eV
   Double_t fGasDiffusion;          // mm2/s
@@ -169,7 +171,6 @@ class TSolSimGEMDigitization: public THaAnalysisObject
   Double_t fTriggerJitter;       // trigger sigma jitter (ns)
   Int_t    fEleSamplingPoints;
   Double_t fEleSamplingPeriod;   // ns
-  Double_t fPulseNoiseSigma; // sigma of the amplitude noise distribution on each sample
   Double_t fADCoffset;       // ADC offset
   Double_t fADCgain;         // ADC gain
   Int_t    fADCbits;         // ADC resolutions in bits
@@ -180,6 +181,12 @@ class TSolSimGEMDigitization: public THaAnalysisObject
                              // relative to the center of the GEM chamber
   Double_t fLateralUncertainty; // avalanche electrons can only pass through the holes of GEM foil
                                 // which introduce additional uncertainty in the lateral direction
+
+  //parameter for GEM pedestal noise
+  Double_t fPulseNoiseSigma;  // additional sigma term of the pedestal noise
+  Double_t fPulseNoisePeriod; // period of the pedestal noise, assuming sinusoidal function
+  Double_t fPulseNoiseAmpConst;  // constant term of the pedestal noise amplitude
+  Double_t fPulseNoiseAmpSigma;  // sigma term of the pedestal noise amplitude
 
   // Pulse shaping parameters
   Double_t fPulseShapeTau0;   // [ns] GEM model; = 50. in SiD model
@@ -221,6 +228,7 @@ class TSolSimGEMDigitization: public THaAnalysisObject
   TSolSimEvent* fEvent;   // Output event structure, written to tree
 
   Bool_t fFilledStrips;   // True if no data changed since last SetTreeStrips
+  
 
   void MakePrefix() { THaAnalysisObject::MakePrefix(0); }
   void DeleteObjects();
