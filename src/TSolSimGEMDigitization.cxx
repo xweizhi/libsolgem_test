@@ -15,6 +15,8 @@
 #include "TSolGEMPlane.h"
 #include "TSolSimAux.h"
 #include "TSolSimEvent.h"
+#include "types.h"
+#include "Rtypes.h"
 
 #include <cmath>
 #include <iomanip>
@@ -33,6 +35,10 @@ static const UInt_t   kYIntegralStepsPerPitch = 10;
 static const Double_t kSNormNsigma = 3.0;
 static const UInt_t   MAX_IONS = 200;
 
+Bool_t   TSolSimGEMDigitization::fDoCrossTalk = false;
+Int_t    TSolSimGEMDigitization::fNCStripApart = 0.;
+Double_t TSolSimGEMDigitization::fCrossFactor = 0.;
+Double_t TSolSimGEMDigitization::fCrossSigma = 0.;
 // Chamber number -> sector/plane helper functions
 
 inline
@@ -74,7 +80,8 @@ TSolDigitizedPlane::TSolDigitizedPlane (UShort_t nstrip,
 
   fStripADC.Set(fNSamples*fNStrips);
   fStripClusters.resize(fNStrips);
-
+  
+  fRan.SetSeed(0);
   Clear();
 };
 
@@ -111,23 +118,65 @@ TSolDigitizedPlane::Cumulate (const TSolGEMVStrip *vv, Short_t type,
       Int_t idx = vv->GetIdx(j);
       assert( idx >= 0 && idx < fNStrips );
       fType[idx] |= type;
+      
       fTime[idx] = (fTime[idx] < vv->GetTime()) ? fTime[idx] : vv->GetTime();
       fCharge[idx] += vv->GetCharge(j);
       bool was_below = !( fTotADC[idx] > fThreshold );
       for( UInt_t k=0; k<fNSamples; k++ ) {
-	Int_t nnn = vv->GetADC(j,k);
-	assert( nnn >= 0 );
-	if( nnn == 0 ) continue;
-	Int_t iadc = idx*fNSamples+k;
-	fStripADC[iadc] = fStripADC[iadc] + nnn;
-	fTotADC[idx] += nnn;
+	    Int_t nnn = vv->GetADC(j,k);
+	    assert( nnn >= 0 );
+	    if( nnn == 0 ) continue;
+	    Int_t iadc = idx*fNSamples+k;
+	    fStripADC[iadc] = fStripADC[iadc] + nnn;
+	    fTotADC[idx] += nnn;
       }
       if( was_below && fTotADC[idx] > fThreshold ) {
-	assert( fNOT < fNStrips );
-	fOverThr[fNOT] = idx;
-	++fNOT;
+	    assert( fNOT < fNStrips );
+	    fOverThr[fNOT] = idx;
+	    ++fNOT;
       }
       fStripClusters[idx].push_back(clusterID);
+    }
+    
+    //do cross talk if requested, a big signal along the strips will induce a smaller signal
+    //as the bigger one going to the APV, the smaller signal will appear on strips that is 
+    //about 32 channels away from the big signal
+    if (!TSolSimGEMDigitization::fDoCrossTalk) return;
+    //only simulate the induced signal on one side of the main signal for now
+    Int_t isLeft = fRan.Uniform(1.) < 0.5 ? -1 : 1;
+    Double_t factor = TSolSimGEMDigitization::fCrossFactor + 
+                      fRan.Gaus(0., TSolSimGEMDigitization::fCrossSigma);
+    if (factor <= 0.) return; //no induced signal
+    
+    for( Int_t j=0; j < vv->GetSize(); j++ ) {
+      Int_t idx = vv->GetIdx(j);
+      assert( idx >= 0 && idx < fNStrips );
+      
+      Int_t idxInduce = idx + isLeft*TSolSimGEMDigitization::fNCStripApart;
+      if (idxInduce < 0 || idxInduce >= fNStrips ) continue; //outside the readout
+      
+      SETBIT(fType[idxInduce], kInducedStrip);
+      //same time as the main signal strip
+      fTime[idxInduce] = (fTime[idx] < vv->GetTime()) ? fTime[idx] : vv->GetTime();
+      fCharge[idxInduce] += factor*vv->GetCharge(j);
+      bool was_below = !( fTotADC[idxInduce] > fThreshold );
+      for( UInt_t k=0; k<fNSamples; k++ ) {
+	    Int_t nnn = vv->GetADC(j,k);
+	    assert( nnn >= 0 );
+	    nnn *= factor;
+	    if( nnn == 0 ) continue;
+	    Int_t iadc = idxInduce*fNSamples+k;
+	    fStripADC[iadc] = fStripADC[iadc] + nnn;
+	    fTotADC[idxInduce] += nnn; 
+      }
+      if( was_below && fTotADC[idxInduce] > fThreshold ) {
+	    assert( fNOT < fNStrips );
+	    fOverThr[fNOT] = idxInduce;
+	    ++fNOT;
+      }
+      //don't know if it is a good idea to add clusterID, since the induced strip is not
+      //due to actually being hit, one need to use the signal type to tell whether this 
+      //strip is purely induced or it contains contribution from real hit
     }
   }
 };
@@ -200,6 +249,7 @@ TSolSimGEMDigitization::Initialize(const TSolSpec& spect)
   DeleteObjects();
 
   fNChambers = spect.GetNChambers();
+  
   fDP = new TSolDigitizedPlane**[fNChambers];
   fNPlanes = new UInt_t[fNChambers];
   for (UInt_t ic = 0; ic < fNChambers; ++ic)
@@ -258,6 +308,10 @@ TSolSimGEMDigitization::ReadDatabase (const TDatime& date)
       { "use_tracker_frame",         &fUseTrackerFrame,           kInt    },
       { "entrance_ref",              &fEntranceRef,               kDouble },
       { "avalateraluncertainty",     &fLateralUncertainty,        kDouble },
+      { "do_crosstalk",              &fDoCrossTalk,               kInt    },
+      { "crosstalk_mean",            &fCrossFactor,               kDouble },
+      { "crosstalk_sigma",           &fCrossSigma,                 kDouble },
+      { "corsstalk_strip_apart",     &fNCStripApart,              kInt    },
       { 0 }
     };
 
@@ -273,6 +327,7 @@ TSolSimGEMDigitization::ReadDatabase (const TDatime& date)
     return kInitError;
   }
   fAvalancheFiducialBand = TMath::Abs(fAvalancheFiducialBand);
+  
 
   return kOK;
 }
@@ -855,6 +910,12 @@ TSolSimGEMDigitization::Print() const
   cout << "  Pulse shaping parameters:" << endl;
   cout << "    Pulse shape tau0: " << fPulseShapeTau0 << endl;
   cout << "    Pulse shape tau1: " << fPulseShapeTau1 << endl;
+  
+  cout << "  APV25 cross talk parameters:" << endl;
+  cout << "  Do Cross talk simulation: " << fDoCrossTalk << endl;
+  cout << "  Cross talk mean reduction factor: "<< fCrossFactor << endl;
+  cout << "  Sigma of cross talk mean reduction factor: " << fCrossSigma << endl;
+  cout << "  # of strips the induced signal is apart from the mean signal: "<< fNCStripApart << endl;
 }
 
 void

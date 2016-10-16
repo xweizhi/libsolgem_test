@@ -18,10 +18,10 @@ ratedig.adcgain = 1.
 ratedig.adcbits = 12
 ratedig.gatewidth = 200.
 # GEM pedestal noise
-ratedig.pulsenoisesigma = 20.
+ratedig.pulsenoisesigma = 10.
 ratedig.pulsenoiseperiod = 200. #ns
-ratedig.pulsenoiseampconst = 30. #ADC values
-ratedig.pulsenoiseampsigma = 30. #ADC values
+ratedig.pulsenoiseampconst = 20. #ADC values
+ratedig.pulsenoiseampsigma = 10. #ADC values
 
 # Pulse shaping parameters:
 ratedig.pulseshapetau0 = 38.3  # ns
@@ -29,4 +29,10 @@ ratedig.pulseshapetau1 = 129.  # ns
 # Geometry
 ratedig.zrout = 9.19   # mm
 ratedig.use_tracker_frame = 0
-ratedig.entrance_ref = -4.687 
+ratedig.entrance_ref = -4.687
+
+#cross talk simulation of APV25
+ratedig.do_crosstalk = 1
+ratedig.crosstalk_mean = 0.5
+ratedig.crosstalk_sigma = 0
+ratedig.corsstalk_strip_apart = 32

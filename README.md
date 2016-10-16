@@ -62,7 +62,3 @@ There are two basic ideas building on the analyzer.
 Modified August 5, 2011
 Seamus Riordan
 riordan@jlab.org
-# libsolgem_test
-# libsolgem_test
-# libsolgem_test
-# libsolgem_test

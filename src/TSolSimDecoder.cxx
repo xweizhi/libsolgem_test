@@ -22,6 +22,8 @@
 #include "TMath.h"
 #include "TDatabasePDG.h"
 #include "TRandom.h"
+#include "types.h"
+#include "Rtypes.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -301,6 +303,15 @@ MCHitInfo TSolSimDecoder::GetMCHitInfo( Int_t crate, Int_t slot, Int_t chan ) co
   assert( strip.fProj >= 0 && strip.fProj < NPROJ );
 
   MCHitInfo mc;
+  
+  //if the strip is purely induced, don't need to do anything, set the fMCTrack to -1
+  //in order to let the caller knows about it, otherwise we analyze it just like normal
+  if (TESTBIT(strip.fSigType, kInducedStrip) && !TESTBIT(strip.fSigType, kPrimaryStrip) && 
+      !TESTBIT(strip.fSigType, kSecondaryStrip) ){
+    mc.fMCTrack = -1;
+    return mc;
+  }
+  
   for( Int_t i = 0; i<strip.fClusters.GetSize(); ++i ) {
     Int_t iclust = strip.fClusters[i] - 1;  // yeah, array index = clusterID - 1
     assert( iclust >= 0 && static_cast<vsiz_t>(iclust) < simEvent->fGEMClust.size() );

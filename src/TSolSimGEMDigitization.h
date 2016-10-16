@@ -46,6 +46,10 @@ private:
   Short_t*  fOverThr;  // # list of strips over threshold
 
   std::vector< std::vector<Short_t> > fStripClusters; // Clusters associated with each strip
+  
+  //used to simulate cross talk of APV25
+  TRandom3 fRan;
+  
 
 public:
   // init and reset physics strips arrays
@@ -142,6 +146,11 @@ class TSolSimGEMDigitization: public THaAnalysisObject
 
   Bool_t IsMapSector() const { return fDoMapSector; }
   void SetMapSector( Bool_t b = true ) { fDoMapSector = b; }
+  
+  static Bool_t   fDoCrossTalk;  //whether we want to do cross talk simulation
+  static Int_t    fNCStripApart; // # of strips the induced signal is away from the mean signal
+  static Double_t fCrossFactor;  //reduction factor for the induced signal
+  static Double_t fCrossSigma;   //uncertainty of the reduction factor
 
  private:
 
@@ -194,7 +203,7 @@ class TSolSimGEMDigitization: public THaAnalysisObject
 
   // Geometry
   Double_t fRoutZ;            // z-distance hit entrance to readout plane [mm]
-
+  
   // Sector mapping
   Bool_t   fDoMapSector;
   Int_t    fSignalSector;
